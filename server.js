@@ -7,11 +7,14 @@ const DATA_TYPE = { usersList: 'usersList', message: 'message' };
 const wss = new WebSocket.Server({ port: 8080 });
 let users = {};
 wss.on('connection', function connection(ws) {
-    
+
+    ws.isAlive = true;
+     
     //generateUsersInfo
     const currentUserId = Math.floor(Math.random() * 1000);
     const userNameObj = FunnyNames.getNameObject();
     users[currentUserId] = { userName: userNameObj.name, color: userNameObj.color, socket: ws };
+    ws.on('pong', heartbeat);
 
     //sendGreetings
     const greeting = JSON.stringify({ type: DATA_TYPE.message, message: { author: '_SERVER_', color: userNameObj.color, text: `Hi ${userNameObj.name}!`, } });
@@ -59,6 +62,20 @@ wss.on('connection', function connection(ws) {
         });
         delete users[currentUserId];
     });
+
 });
 
+const interval = setInterval(function ping() {
+    wss.clients.forEach(function each(ws) {
+        if (ws.isAlive === false)  return ws.terminate();
+        
+        ws.isAlive = false;
+        ws.ping(noop);
+    });
+}, 15000);
 
+function noop() { }
+
+function heartbeat() {
+    this.isAlive = true;
+}
